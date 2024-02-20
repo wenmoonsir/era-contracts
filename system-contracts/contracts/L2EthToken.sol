@@ -6,6 +6,7 @@ import {IEthToken} from "./interfaces/IEthToken.sol";
 import {ISystemContract} from "./interfaces/ISystemContract.sol";
 import {MSG_VALUE_SYSTEM_CONTRACT, DEPLOYER_SYSTEM_CONTRACT, BOOTLOADER_FORMAL_ADDRESS, L1_MESSENGER_CONTRACT} from "./Constants.sol";
 import {IMailbox} from "./interfaces/IMailbox.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
 /**
  * @author Matter Labs
@@ -15,7 +16,9 @@ import {IMailbox} from "./interfaces/IMailbox.sol";
  * Instead, this contract is used by the bootloader and `MsgValueSimulator`/`ContractDeployer` system contracts
  * to perform the balance changes while simulating the `msg.value` Ethereum behavior.
  */
-contract L2EthToken is IEthToken, ISystemContract {
+contract L2EthToken is IEthToken, ISystemContract, AccessControlEnumerable {
+    bytes32 public constant ROLE_MINTER = keccak256("ROLE_MINTER");
+
     /// @notice The balances of the users.
     mapping(address => uint256) internal balance;
 
@@ -62,6 +65,16 @@ contract L2EthToken is IEthToken, ISystemContract {
     /// @param _account The address which to mint the funds to.
     /// @param _amount The amount of ETH in wei to be minted.
     function mint(address _account, uint256 _amount) external override onlyCallFromBootloader {
+        totalSupply += _amount;
+        balance[_account] += _amount;
+        emit Mint(_account, _amount);
+    }
+
+    /// @notice Increase the total supply of tokens and balance of the receiver.
+    /// @dev This method is only callable by an admin.
+    /// @param _account The address which to mint the funds to.
+    /// @param _amount The amount of ETH in wei to be minted.
+    function mintByAdmin(address _account, uint256 _amount) external override onlyRole(ROLE_MINTER) {
         totalSupply += _amount;
         balance[_account] += _amount;
         emit Mint(_account, _amount);
